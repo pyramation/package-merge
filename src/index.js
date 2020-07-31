@@ -1,26 +1,25 @@
 const semver = require('semver');
 const intersect = require('semver-set').intersect;
 const json = require('jju');
-const mapValues = require('lodash/object/mapValues');
-const assign = require('lodash/object/assign');
-const isEmpty = require('lodash/lang/isEmpty');
-const filter = require('lodash/collection/filter');
-const contains = require('lodash/collection/contains');
-const has = require('lodash/object/has');
+const mapValues = require('lodash/mapValues');
+const assign = require('lodash/assign');
+const isEmpty = require('lodash/isEmpty');
+const filter = require('lodash/filter');
+const includes = require('lodash/includes');
+const has = require('lodash/has');
 
 const handlers = {
+  // Keywords
+  keywords: unique,
 
-        // Keywords
-        keywords: unique,
+  // Scripts
+  scripts: exists,
 
-        // Scripts
-        scripts: exists,
-
-        // General dependencies
-        dependencies: updateDependencies,
-        devDependencies: updateDependencies,
-        peerDependencies: updateDependencies
-}
+  // General dependencies
+  dependencies: updateDependencies,
+  devDependencies: updateDependencies,
+  peerDependencies: updateDependencies
+};
 
 /**
  * [scripts description]
@@ -29,7 +28,7 @@ const handlers = {
  * @returns {Object}     [description]
  */
 function exists(dst, src) {
-        return assign({ }, dst, src);
+  return assign({}, dst, src);
 }
 
 /**
@@ -41,25 +40,32 @@ function exists(dst, src) {
  * @returns {Array}     [description]
  */
 function unique(dst, src) {
-        if (isEmpty(dst)) {
-                return src;
-        } else {
-                return [].concat(dst, filter(src, function(keyword) {
-                        return contains(dst, keyword);
-                }));
-        }
+  if (isEmpty(dst)) {
+    return src;
+  } else {
+    return [].concat(
+      dst,
+      filter(src, function(keyword) {
+        return includes(dst, keyword);
+      })
+    );
+  }
 }
 
 function updateDependencies(dst, src) {
-        return isEmpty(dst) ? src : assign({ }, dst, mapValues(src, function(version, dep) {
-                // We need to check if both are indeed semver ranges in order to do
-                // intersects – some may be git urls or other such things.
-                var isSem = semver.validRange(version) && semver.validRange(dst[dep]);
-                return isSem ? intersect(version, dst[dep]) || version : version;
-        }));
+  return isEmpty(dst)
+    ? src
+    : assign(
+        {},
+        dst,
+        mapValues(src, function(version, dep) {
+          // We need to check if both are indeed semver ranges in order to do
+          // intersects – some may be git urls or other such things.
+          var isSem = semver.validRange(version) && semver.validRange(dst[dep]);
+          return isSem ? intersect(version, dst[dep]) || version : version;
+        })
+      );
 }
-
-
 
 /**
  * [combine description]
@@ -68,9 +74,15 @@ function updateDependencies(dst, src) {
  * @returns {Object} [description]
  */
 function combine(dst, src) {
-        return isEmpty(dst) ? src : assign({ }, dst, mapValues(src, function (value, key) {
-                return has(handlers, key) ? handlers[key](dst[key], value) : value;
-        }));
+  return isEmpty(dst)
+    ? src
+    : assign(
+        {},
+        dst,
+        mapValues(src, function(value, key) {
+          return has(handlers, key) ? handlers[key](dst[key], value) : value;
+        })
+      );
 }
 
 /**
@@ -80,7 +92,7 @@ function combine(dst, src) {
  * @returns {String} Result of merging src into dst.
  */
 function merge(dst, src) {
-        return json.update(dst, combine(json.parse(dst), json.parse(src)), { });
+  return json.update(dst, combine(json.parse(dst), json.parse(src)), {});
 }
 
 module.exports = merge;
